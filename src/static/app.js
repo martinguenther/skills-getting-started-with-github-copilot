@@ -20,24 +20,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        // Teilnehmerliste als hübsche, formatierte Liste
+        // Teilnehmerliste als hübsche, formatierte Liste mit Delete-Icon
         let participantsHTML = "";
         if (details.participants.length > 0) {
-          participantsHTML = `
-            <div class="participants-section">
-              <strong>Participants:</strong>
-              <ul class="participants-list">
-                ${details.participants.map(email => `<li>${email}</li>`).join("")}
-              </ul>
+          participantsHTML = `<div class="participants-section">
+            <strong>Participants:</strong>
+            <div class="participants-list">
+              ${details.participants.map(email => `
+                <span class="participant-item">
+                  <span class="participant-email">${email}</span>
+                  <span class="delete-participant" title="Unregister" data-activity="${name}" data-email="${email}">&#128465;</span>
+                </span>
+              `).join(' ')}
             </div>
-          `;
+          </div>`;
         } else {
-          participantsHTML = `
-            <div class="participants-section">
-              <strong>Participants:</strong>
-              <span class="no-participants">No participants yet.</span>
-            </div>
-          `;
+          participantsHTML = `<div class="participants-section"><span class="no-participants">No participants yet.</span></div>`;
         }
 
         activityCard.innerHTML = `
@@ -62,6 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+
   // Handle form submission
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -79,10 +78,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const result = await response.json();
 
+
       if (response.ok) {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities(); // Aktivitätenliste nach erfolgreichem Signup aktualisieren
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -99,6 +100,36 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
+    }
+  });
+
+  // Event Delegation für Delete-Icons
+  activitiesList.addEventListener("click", async (event) => {
+    if (event.target.classList.contains("delete-participant")) {
+      const activity = event.target.getAttribute("data-activity");
+      const email = event.target.getAttribute("data-email");
+      if (!activity || !email) return;
+      try {
+        const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(email)}`, {
+          method: "POST",
+        });
+        const result = await response.json();
+        if (response.ok) {
+          messageDiv.textContent = result.message || "Participant unregistered.";
+          messageDiv.className = "success message";
+          fetchActivities();
+        } else {
+          messageDiv.textContent = result.detail || "Failed to unregister participant.";
+          messageDiv.className = "error message";
+        }
+        messageDiv.classList.remove("hidden");
+        setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+      } catch (error) {
+        messageDiv.textContent = "Failed to unregister participant. Please try again.";
+        messageDiv.className = "error message";
+        messageDiv.classList.remove("hidden");
+        setTimeout(() => { messageDiv.classList.add("hidden"); }, 5000);
+      }
     }
   });
 
